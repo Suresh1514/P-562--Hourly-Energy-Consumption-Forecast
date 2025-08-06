@@ -2,12 +2,5 @@ streamlit
 pandas
 numpy
 matplotlib
-seaborn
-wordcloud
-textblob
-python-dateutil
+statsmodels
 scikit-learn
-scipy
-joblib
-openpyxl
-
