@@ -1,0 +1,13 @@
+streamlit
+pandas
+numpy
+matplotlib==3.8.2
+seaborn
+wordcloud
+textblob
+python-dateutil
+scikit-learn
+scipy
+joblib
+openpyxl
+
