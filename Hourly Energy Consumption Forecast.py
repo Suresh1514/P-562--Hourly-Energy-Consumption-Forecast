@@ -24,7 +24,7 @@ This application forecasts the next **30 days** of power supply (in MW) for the 
 @st.cache_data
 def load_data():
     # Load the CSV data
-    df = pd.read_csv("C:\\Users\\sures_jp6cuxd\\Downloads\\project 2\\PJMW_hourly.csv", parse_dates=['Datetime'], index_col='Datetime')
+    df = pd.read_csv("PJMW_hourly.csv", parse_dates=['Datetime'], index_col='Datetime')
     df = df.sort_index()  # Ensure chronological order
     return df
 
