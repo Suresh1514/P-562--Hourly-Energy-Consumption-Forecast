@@ -1,7 +1,7 @@
 streamlit
 pandas
 numpy
-matplotlib
+matplotlib==3.8.2
 seaborn
 wordcloud
 textblob
@@ -10,4 +10,3 @@ scikit-learn
 scipy
 joblib
 openpyxl
-
