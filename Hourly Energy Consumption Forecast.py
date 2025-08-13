@@ -4,21 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sklearn.metrics import mean_squared_error
+from math import sqrt
 import warnings
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.callbacks import EarlyStopping
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
-
-# Check for TensorFlow availability
-try:
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense
-    from tensorflow.keras.callbacks import EarlyStopping
-    from sklearn.preprocessing import MinMaxScaler
-    TENSORFLOW_AVAILABLE = True
-except ImportError:
-    TENSORFLOW_AVAILABLE = False
-    st.warning("TensorFlow is not available. LSTM model option will be disabled.")
 
 # Set page config
 st.set_page_config(page_title="PJMW 30-Day Power Forecast", layout="wide")
@@ -37,22 +32,21 @@ def load_data():
     df = df.sort_index()  # Ensure chronological order
     return df
 
-# LSTM functions (only define if TensorFlow is available)
-if TENSORFLOW_AVAILABLE:
-    def create_dataset(dataset, look_back=1):
-        X, Y = [], []
-        for i in range(len(dataset)-look_back-1):
-            a = dataset[i:(i+look_back), 0]
-            X.append(a)
-            Y.append(dataset[i + look_back, 0])
-        return np.array(X), np.array(Y)
+# LSTM functions
+def create_dataset(dataset, look_back=1):
+    X, Y = [], []
+    for i in range(len(dataset)-look_back-1):
+        a = dataset[i:(i+look_back), 0]
+        X.append(a)
+        Y.append(dataset[i + look_back, 0])
+    return np.array(X), np.array(Y)
 
-    def build_lstm_model(look_back, lstm_units=50, dense_units=1):
-        model = Sequential()
-        model.add(LSTM(lstm_units, input_shape=(1, look_back)))
-        model.add(Dense(dense_units))
-        model.compile(loss='mean_squared_error', optimizer='adam')
-        return model
+def build_lstm_model(look_back, lstm_units=50, dense_units=1):
+    model = Sequential()
+    model.add(LSTM(lstm_units, input_shape=(1, look_back)))
+    model.add(Dense(dense_units))
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    return model
 
 try:
     # Load data
@@ -69,15 +63,10 @@ try:
     # Model configuration
     st.sidebar.header("Forecast Settings")
     
-    # Model selection - only show LSTM if TensorFlow is available
-    if TENSORFLOW_AVAILABLE:
-        model_options = ["ARIMA", "SARIMA", "LSTM"]
-    else:
-        model_options = ["ARIMA", "SARIMA"]
-    
+    # Model selection
     model_type = st.sidebar.radio(
         "Select Forecasting Model",
-        model_options,
+        ["ARIMA", "SARIMA", "LSTM"],
         index=0
     )
     
@@ -134,7 +123,7 @@ try:
         # Model summary
         model_details = model_fit.summary()
         
-    elif model_type == "LSTM" and TENSORFLOW_AVAILABLE:
+    else:  # LSTM
         st.sidebar.subheader("LSTM Parameters")
         look_back = st.sidebar.slider("Look Back Period (days)", 1, 90, 30)
         lstm_units = st.sidebar.slider("LSTM Units", 10, 200, 50)
