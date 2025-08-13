@@ -1,8 +1,12 @@
 streamlit
 pandas
 numpy
-matplotlib
-statsmodels
-scikit-learn
+matplotlib==3.8.2
+seaborn
+wordcloud
+textblob
 python-dateutil
-pytz
+scikit-learn
+scipy
+joblib
+openpyxl
