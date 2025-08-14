@@ -51,3 +51,4 @@ tzlocal==4.3.1
 urllib3==2.0.3
 validators==0.20.0
 zipp==3.15.0
+pip install matplotlib==3.5.1
