@@ -1,0 +1,153 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sklearn.metrics import mean_squared_error
+from math import sqrt
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+
+# Set page config
+st.set_page_config(page_title="PJMW 30-Day Power Forecast", layout="wide")
+
+# Title and description
+st.title("PJMW Power Supply Forecasting")
+st.markdown("""
+This application forecasts the next **30 days** of power supply (in MW) for the PJMW region.
+""")
+
+# Load and prepare data
+@st.cache_data
+def load_data():
+    # Load the CSV data
+    df = pd.read_csv("PJMW_hourly.csv", parse_dates=['Datetime'], index_col='Datetime')
+    df = df.sort_index()  # Ensure chronological order
+    return df
+
+try:
+    # Load data
+    df = load_data()
+    
+    # Convert to daily average power
+    daily_power = df.resample('D').mean()
+    daily_power.columns = ['Daily_Power_MW']
+    
+    # Display data summary
+    with st.expander("View Raw Data"):
+        st.dataframe(daily_power)
+    
+    # Model configuration
+    st.sidebar.header("Forecast Settings")
+    
+    # Model selection
+    model_type = st.sidebar.radio(
+        "Select Forecasting Model",
+        ["ARIMA", "SARIMA"],
+        index=0
+    )
+    
+    # Model parameters
+    if model_type == "ARIMA":
+        st.sidebar.subheader("ARIMA Parameters")
+        col1, col2, col3 = st.sidebar.columns(3)
+        with col1:
+            p = st.selectbox("Autoregressive (p)", [0, 1, 2, 3], index=1)
+        with col2:
+            d = st.selectbox("Differencing (d)", [0, 1, 2], index=1)
+        with col3:
+            q = st.selectbox("Moving Average (q)", [0, 1, 2, 3], index=1)
+        
+        model = ARIMA(daily_power, order=(p, d, q))
+        
+    else:  # SARIMA
+        st.sidebar.subheader("SARIMA Parameters")
+        col1, col2, col3 = st.sidebar.columns(3)
+        with col1:
+            p = st.selectbox("Autoregressive (p)", [0, 1, 2, 3], index=1)
+            P = st.selectbox("Seasonal AR (P)", [0, 1, 2], index=1)
+        with col2:
+            d = st.selectbox("Differencing (d)", [0, 1, 2], index=1)
+            D = st.selectbox("Seasonal Diff (D)", [0, 1], index=1)
+        with col3:
+            q = st.selectbox("Moving Average (q)", [0, 1, 2, 3], index=1)
+            Q = st.selectbox("Seasonal MA (Q)", [0, 1, 2], index=1)
+        
+        s = st.sidebar.selectbox("Seasonality Period", [7, 30], index=0,
+                                help="7 for weekly, 30 for monthly seasonality")
+        
+        model = SARIMAX(daily_power, order=(p, d, q), seasonal_order=(P, D, Q, s))
+    
+    # Fit model
+    model_fit = model.fit()
+    
+    # Generate 30-day forecast
+    forecast_steps = 30
+    forecast = model_fit.get_forecast(steps=forecast_steps)
+    forecast_index = pd.date_range(start=daily_power.index[-1] + pd.Timedelta(days=1), 
+                                  periods=forecast_steps, freq='D')
+    
+    # Create forecast dataframe
+    forecast_df = pd.DataFrame({
+        'Date': forecast_index,
+        'Forecasted_Power_MW': forecast.predicted_mean,
+        'Lower_Bound': forecast.conf_int().iloc[:, 0],
+        'Upper_Bound': forecast.conf_int().iloc[:, 1]
+    }).set_index('Date')
+    
+    # Visualization
+    st.subheader("30-Day Power Supply Forecast")
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Plot historical data (last 90 days for context)
+    historical = daily_power.last('90D')
+    ax.plot(historical.index, historical['Daily_Power_MW'], 
+            label='Historical Power', color='blue', linewidth=2)
+    
+    # Plot forecast
+    ax.plot(forecast_df.index, forecast_df['Forecasted_Power_MW'], 
+            label='Forecast', color='red', linestyle='--', linewidth=2)
+    
+    # Confidence interval
+    ax.fill_between(forecast_df.index, 
+                   forecast_df['Lower_Bound'], 
+                   forecast_df['Upper_Bound'], 
+                   color='orange', alpha=0.2, label='Confidence Interval')
+    
+    # Formatting
+    ax.set_title('PJMW 30-Day Power Supply Forecast', fontsize=16)
+    ax.set_xlabel('Date', fontsize=12)
+    ax.set_ylabel('Power (MW)', fontsize=12)
+    ax.legend(loc='upper left')
+    ax.grid(True, linestyle='--', alpha=0.7)
+    plt.xticks(rotation=45)
+    
+    st.pyplot(fig)
+    
+    # Display forecast table
+    st.subheader("Detailed Forecast Data")
+    forecast_display = forecast_df.copy()
+    forecast_display.index = forecast_display.index.strftime('%Y-%m-%d')
+    st.dataframe(forecast_display.style.format("{:.2f}"))
+    
+    # Download button
+    csv = forecast_df.reset_index().to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download 30-Day Forecast (CSV)",
+        data=csv,
+        file_name='pjwm_30day_power_forecast.csv',
+        mime='text/csv',
+        help="Download the forecast data as a CSV file"
+    )
+    
+    # Model summary
+    with st.expander("Model Details"):
+        st.text(model_fit.summary())
+    
+except Exception as e:
+    st.error(f"Error loading or processing data: {str(e)}")
+    st.info("Please ensure the data file 'PJMW_hourly.csv' exists with columns 'Datetime' and 'PJMW_MW'")
