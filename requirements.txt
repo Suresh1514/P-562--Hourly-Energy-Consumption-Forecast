@@ -9,5 +9,5 @@ python-dateutil==2.8.2
 cycler==0.11.0
 kiwisolver==1.4.4
 pillow==9.5.0
-fonttools==4.42.1  # Required for text rendering in matplotlib
-setuptools==68.0.0  # Ensures proper package installation
+fonttools==4.42.1
+setuptools==68.0.0
